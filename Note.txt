@@ -1,0 +1,14 @@
+index.js->database->controller
+
+.env -> KEY:VALUE (secret token/ hashing/ js ko url)  lai separately rakhne thau
+
+
+browser maa get matra chalxa
+----------------------------------------------------------------
+logic lekhne thau -> route ->
+
+user register-> login->
+
+
+------------------------------------------------
+JSON-> stores data in key and value pair
