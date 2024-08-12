@@ -207,6 +207,7 @@ const servicePagination = async (req, res) => {
 
   // page no (received from user)
   const pageNo = req.query._page;
+  // const pageNo = parseInt(req.query._page) || 1; // Default to page 1 if not provided
   console.log(pageNo);
 
   try {
@@ -236,6 +237,23 @@ const servicePagination = async (req, res) => {
   }
 };
 
+// Controller action to search for services by service name
+const searchServicesByName = async (req, res) => {
+  try {
+    const { serviceName } = req.body;
+
+    // Use a regular expression to perform a case-insensitive search
+    const services = await serviceModel.find({
+      serviceName: { $regex: serviceName, $options: "i" },
+    });
+
+    res.json(services);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   createservice,
   getAllservices,
@@ -243,4 +261,5 @@ module.exports = {
   updateservice,
   deleteservice,
   servicePagination,
+  searchServicesByName
 };

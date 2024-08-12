@@ -128,7 +128,20 @@ const loginUser = async (req, res) => {
 //exporting
 // module.exports = createUser  // only for create user
 
+// Logout user function
+const logoutUser = async (req, res) => {
+  // For now, just return a success message since token management is client-side.
+  // If you want to handle blacklisting tokens or session management, you would implement it here.
+  res.json({
+    success: true,
+    message: "Logout successful",
+  });
+};
+
+// Other functions...
+
 module.exports = {
   createUser,
   loginUser,
+  logoutUser,
 };

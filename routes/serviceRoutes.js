@@ -29,5 +29,8 @@ router.put("/update_service/:id", adminGuard, serviceControllers.updateservice);
 // pagination
 router.get("/pagination", serviceControllers.servicePagination);
 
+// Route to search for services by sevice name
+router.post("/search", serviceControllers.searchServicesByName);
+
 //exporting
 module.exports = router;
