@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const serviceSchema = new mongoose.Schema(
   {
-    serviceName: {
+    serviceTitle: {
       type: String,
       required: true,
     },
@@ -31,9 +31,21 @@ const serviceSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    // createdBy: {
+    //   type: String,
+    //   required: true,
+    // },
     isApproved: {
       type: Boolean,
       default: false,
+    },
+    averageRating: {
+      type: Number,
+      default: 0,
+    },
+    numberOfReviews: {
+      type: Number,
+      default: 0,
     },
   },
   { timestamps: true }

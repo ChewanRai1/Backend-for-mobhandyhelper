@@ -1,5 +1,7 @@
 const path = require("path");
 const serviceModel = require("../models/serviceModel");
+const User = require("../models/userModel");
+const Review = require("../models/reviewModel");
 const fs = require("fs");
 
 const createservice = async (req, res) => {
@@ -9,7 +11,7 @@ const createservice = async (req, res) => {
 
   //Task: destructuring, validation
   const {
-    serviceName,
+    serviceTitle,
     servicePrice,
     serviceCategory,
     serviceDescription,
@@ -17,7 +19,7 @@ const createservice = async (req, res) => {
   } = req.body;
 
   if (
-    !serviceName ||
+    !serviceTitle ||
     !servicePrice ||
     !serviceCategory ||
     !serviceDescription ||
@@ -50,7 +52,7 @@ const createservice = async (req, res) => {
 
     //save to data database
     const newservice = new serviceModel({
-      serviceName: serviceName,
+      serviceTitle: serviceTitle,
       servicePrice: servicePrice,
       serviceCategory: serviceCategory,
       serviceDescription: serviceDescription,
@@ -104,7 +106,7 @@ const getservice = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
-    res.json({
+    res.status(500).json({
       success: false,
       message: "Server Error!",
     });
@@ -112,22 +114,66 @@ const getservice = async (req, res) => {
 };
 
 //delete service
-const deleteservice = async (req, res) => {
-  //get service id
+// const deleteservice = async (req, res) => {
+//   //get service id
+//   const serviceId = req.params.id;
+
+//   try {
+//     await serviceModel.findByIdAndDelete(serviceId);
+
+//     res.status(201).json({
+//       success: true,
+//       message: "service Deleted!",
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Internal Server Error",
+//     });
+//   }
+// };
+
+const deleteService = async (req, res) => {
   const serviceId = req.params.id;
+  const userId = req.user.id; // Assuming you have user information in req.user
 
   try {
-    await serviceModel.findByIdAndDelete(serviceId);
+    const existingService = await serviceModel.findById(serviceId);
 
-    res.status(201).json({
+    if (!existingService) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found",
+      });
+    }
+
+    if (existingService.createdBy !== userId && !req.user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Permission denied",
+      });
+    }
+
+    const oldImagePath = path.join(
+      __dirname,
+      `../public/services/${existingService.serviceImage}`
+    );
+
+    // delete from file system
+    fs.unlinkSync(oldImagePath);
+
+    await Services.findByIdAndDelete(serviceId);
+    res.status(200).json({
       success: true,
-      message: "service Deleted!",
+      message: "Service deleted",
     });
   } catch (error) {
     console.log(error);
     res.status(500).json({
       success: false,
-      message: "Internal Server Error",
+      message: "Internal server error",
+      error,
     });
   }
 };
@@ -240,11 +286,11 @@ const servicePagination = async (req, res) => {
 // Controller action to search for services by service name
 const searchServicesByName = async (req, res) => {
   try {
-    const { serviceName } = req.body;
+    const { serviceTitle } = req.body;
 
     // Use a regular expression to perform a case-insensitive search
     const services = await serviceModel.find({
-      serviceName: { $regex: serviceName, $options: "i" },
+      serviceTitle: { $regex: serviceTitle, $options: "i" },
     });
 
     res.json(services);
@@ -254,12 +300,222 @@ const searchServicesByName = async (req, res) => {
   }
 };
 
+const getAllServicesByUserId = async (req, res) => {
+  const userId = req.params.id;
+
+  try {
+    const service = await serviceModel.find({ createdBy: userId }).exec();
+    if (!service) {
+      console.log(service);
+    }
+    res.status(201).json({
+      success: true,
+      message: "Service Fetched!",
+      service: service,
+    });
+  } catch (e) {
+    console.log(e);
+    res.json({
+      success: false,
+      message: "Server Error!",
+    });
+  }
+};
+
+const addFavoriteService = async (req, res) => {
+  try {
+    console.log("User from token:", req.user);
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    // Ensure favorites is an array
+    if (!Array.isArray(user.favorites)) {
+      user.favorites = [];
+    }
+
+    const { serviceId } = req.body;
+    if (!serviceId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Service ID is required" });
+    }
+
+    if (!user.favorites.includes(serviceId)) {
+      user.favorites.push(serviceId);
+      await user.save();
+      res
+        .status(200)
+        .json({ success: true, message: "Service added to favorites" });
+    } else {
+      res
+        .status(400)
+        .json({ success: false, message: "Service already in favorites" });
+    }
+  } catch (error) {
+    console.error("Error in addFavoriteService:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+const removeFavoriteService = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const { serviceId } = req.params; // Use req.params to match the route parameter
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    user.favorites = user.favorites.filter(
+      (favorite) => favorite.toString() !== serviceId
+    );
+    await user.save();
+
+    res
+      .status(200)
+      .json({ success: true, message: "Service removed from favorites" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+const getFavoriteServices = async (req, res) => {
+  try {
+    const userId = req.user.id; // From authGuard
+
+    // Fetch the user and populate the 'favorites' field with service details
+    const user = await User.findById(userId).populate("favorites");
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    return res.status(200).json({ success: true, favorites: user.favorites });
+  } catch (error) {
+    console.error("Error in getFavoriteServices:", error);
+    return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+const createReview = async (req, res) => {
+  const { serviceId, rating, comment } = req.body;
+
+  if (!serviceId || !rating || !comment) {
+    return res.status(400).json({
+      success: false,
+      message: "All fields are required",
+    });
+  }
+
+  try {
+    const review = new Review({
+      serviceId: serviceId,
+      userId: req.user.id,
+      rating: rating,
+      comment: comment,
+    });
+
+    await review.save();
+
+    const service = await serviceModel.findById(serviceId);
+
+    // Update the average rating and number of reviews
+    service.numberOfReviews += 1;
+    service.averageRating =
+      (service.averageRating * (service.numberOfReviews - 1) + rating) /
+      service.numberOfReviews;
+
+    await service.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Review created successfully",
+      data: review,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error,
+    });
+  }
+};
+
+// Get reviews for a service
+const getServiceReviews = async (req, res) => {
+  const serviceId = req.params.id;
+
+  try {
+    const reviews = await Review.find({ serviceId: serviceId }).populate(
+      "userId",
+      "fname"
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Reviews fetched successfully",
+      reviews,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error,
+    });
+  }
+};
+
+// Update a review
+const updateReview = async (req, res) => {
+  const { reviewId, rating, comment } = req.body;
+
+  try {
+    const review = await Review.findById(reviewId);
+
+    if (!review) {
+      return res.status(404).json({ message: "Review not found" });
+    }
+
+    if (!review.isOwner(req.user)) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    review.rating = rating;
+    review.comment = comment;
+
+    await review.save();
+
+    res.status(200).json({ message: "Review updated successfully", review });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createservice,
   getAllservices,
   getservice,
   updateservice,
-  deleteservice,
+  deleteService,
   servicePagination,
-  searchServicesByName
+  searchServicesByName,
+
+  getAllServicesByUserId,
+  addFavoriteService,
+  removeFavoriteService,
+  getFavoriteServices,
+  createReview,
+  getServiceReviews,
+  updateReview,
 };

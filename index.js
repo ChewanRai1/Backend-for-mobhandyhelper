@@ -8,6 +8,8 @@ const connectDB = require("./database/database");
 const cors = require("cors");
 // const multipart = require('connect-multiparty')
 const fileUpload = require("express-fileupload");
+const favoriteRoute = require("./routes/serviceRoutes.js");
+const createReview = require("./routes/serviceRoutes.js");
 
 // 2. Creating an express app
 const app = express();
@@ -77,6 +79,10 @@ app.use("/api/service", require("./routes/serviceRoutes")); //import
 // http://localhost:9000/api/service/create
 
 // http://localhost:8000/api/user/create
+app.use("/api/createReview", createReview);
+
+// Favorite route
+app.use("/api/favorites", favoriteRoute);
 
 //  Starting the server
 app.listen(PORT, () => {

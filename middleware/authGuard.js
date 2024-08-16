@@ -87,7 +87,7 @@ const adminGuard = (req, res, next) => {
     });
   }
 };
-module.exports ={authGuard,adminGuard,}
+module.exports = { authGuard, adminGuard };
 // module.exports = authGuard
 
 // const authGuard = require()
