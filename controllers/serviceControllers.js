@@ -16,6 +16,7 @@ const createservice = async (req, res) => {
     serviceCategory,
     serviceDescription,
     serviceLocation,
+    contact,
   } = req.body;
 
   if (
@@ -23,7 +24,8 @@ const createservice = async (req, res) => {
     !servicePrice ||
     !serviceCategory ||
     !serviceDescription ||
-    !serviceLocation
+    !serviceLocation ||
+    !contact
   ) {
     return res.status(400).json({
       success: false,
@@ -57,6 +59,7 @@ const createservice = async (req, res) => {
       serviceCategory: serviceCategory,
       serviceDescription: serviceDescription,
       serviceLocation: serviceLocation,
+      contact: contact,
       serviceImage: imageName,
     });
     const service = await newservice.save();
@@ -284,9 +287,17 @@ const servicePagination = async (req, res) => {
 };
 
 // Controller action to search for services by service name
+// const searchServicesByName = async (req, res) => {
 const searchServicesByName = async (req, res) => {
   try {
     const { serviceTitle } = req.body;
+
+    // Validate that serviceTitle is a string
+    if (!serviceTitle || typeof serviceTitle !== "string") {
+      return res
+        .status(400)
+        .json({ error: "serviceTitle must be a non-empty string" });
+    }
 
     // Use a regular expression to perform a case-insensitive search
     const services = await serviceModel.find({
